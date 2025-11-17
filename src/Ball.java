@@ -17,7 +17,7 @@ public class Ball {
         this.x = startX;
         this.y = startY;
         this.radius = radius;
-        this.color = new Color(0, 255, 255, 255); // Cyan
+        this.color = new Color(0, 255, 255, 255); // Neon Aqua
         reset();
     }
     
@@ -84,22 +84,37 @@ public class Ball {
     public void draw(Graphics2D g2d) {
         // Enable anti-aliasing for smooth rendering
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         
-        // Draw glow effect (outer layers)
-        for (int i = 3; i > 0; i--) {
-            int alpha = 30 / i;
-            int glowRadius = radius + i * 2;
-            g2d.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha));
+        // Draw neon glow effect (2-3 outer circles with transparency)
+        for (int i = 4; i > 0; i--) {
+            int alpha = Math.max(5, 60 / i);
+            int glowRadius = radius + i * 3;
+            g2d.setColor(new Color(0, 255, 255, alpha));
             g2d.fillOval((int)(x - glowRadius), (int)(y - glowRadius), 
                         glowRadius * 2, glowRadius * 2);
+        }
+        
+        // Draw soft blur shadow
+        for (int i = 2; i > 0; i--) {
+            int alpha = 20 / i;
+            int shadowRadius = radius + i;
+            g2d.setColor(new Color(0, 200, 255, alpha));
+            g2d.fillOval((int)(x - shadowRadius), (int)(y - shadowRadius), 
+                        shadowRadius * 2, shadowRadius * 2);
         }
         
         // Draw main ball
         g2d.setColor(color);
         g2d.fillOval((int)(x - radius), (int)(y - radius), radius * 2, radius * 2);
         
+        // Draw reflection effect (white highlight arc)
+        g2d.setColor(new Color(255, 255, 255, 180));
+        g2d.fillArc((int)(x - radius * 0.6), (int)(y - radius * 0.6), 
+                   (int)(radius * 1.2), (int)(radius * 1.2), 30, 120);
+        
         // Draw inner highlight
-        g2d.setColor(new Color(255, 255, 255, 100));
+        g2d.setColor(new Color(255, 255, 255, 120));
         g2d.fillOval((int)(x - radius / 2), (int)(y - radius / 2), radius, radius);
     }
 }

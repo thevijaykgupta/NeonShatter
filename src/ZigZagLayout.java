@@ -7,10 +7,10 @@ import java.util.List;
  */
 public class ZigZagLayout implements BrickLayout {
     private static final Color[] COLORS = {
-        new Color(0, 255, 255, 255),    // Cyan
-        new Color(255, 0, 255, 255),    // Magenta
-        new Color(0, 255, 0, 255),      // Green
-        new Color(255, 255, 0, 255)     // Yellow
+        new Color(0, 245, 255, 255),    // Teal #00F5FF
+        new Color(255, 0, 247, 255),    // Magenta #FF00F7
+        new Color(204, 255, 0, 255),    // Lime Neon #CCFF00
+        new Color(255, 140, 0, 255)     // Orange Neon #FF8C00
     };
     
     @Override

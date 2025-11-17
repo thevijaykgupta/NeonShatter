@@ -6,6 +6,47 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
+ * Background particle for ambient effect
+ */
+class BackgroundParticle {
+    private double x, y;
+    private double speed;
+    private int size;
+    private Color color;
+    
+    public BackgroundParticle() {
+        reset();
+    }
+    
+    public void reset() {
+        x = Math.random() * 800;
+        y = Math.random() * 600;
+        speed = Math.random() * 0.5 + 0.1;
+        size = (int)(Math.random() * 2) + 1;
+        int colorChoice = (int)(Math.random() * 4);
+        switch (colorChoice) {
+            case 0: color = new Color(0, 245, 255, 30); break; // Teal
+            case 1: color = new Color(255, 0, 247, 30); break; // Magenta
+            case 2: color = new Color(204, 255, 0, 30); break; // Lime
+            case 3: color = new Color(255, 140, 0, 30); break; // Orange
+        }
+    }
+    
+    public void update() {
+        y += speed;
+        if (y > 600) {
+            reset();
+            y = -5;
+        }
+    }
+    
+    public void draw(Graphics2D g2d) {
+        g2d.setColor(color);
+        g2d.fillOval((int)x, (int)y, size, size);
+    }
+}
+
+/**
  * Main game panel that handles rendering, game logic, and input
  */
 public class GamePanel extends JPanel implements KeyListener, ActionListener {
@@ -34,11 +75,22 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
     // Input handling
     private boolean leftPressed, rightPressed;
     
+    // Background effects
+    private List<BackgroundParticle> bgParticles;
+    private double scanLinePosition;
+    
     public GamePanel() {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
-        setBackground(new Color(10, 10, 20)); // Dark background
+        setBackground(new Color(5, 1, 15)); // Dark gradient start
         setFocusable(true);
         addKeyListener(this);
+        
+        // Initialize background effects
+        bgParticles = new ArrayList<>();
+        for (int i = 0; i < 15; i++) {
+            bgParticles.add(new BackgroundParticle());
+        }
+        scanLinePosition = 0;
         
         // Initialize layouts
         layouts = new BrickLayout[] {
@@ -132,6 +184,9 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
             if (ball.getVelocityY() > 0) {
                 ball.reverseY();
             }
+            
+            // Play paddle hit sound
+            SoundManager.playPaddleHit();
         }
         
         // Check ball collision with bricks
@@ -148,6 +203,10 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
                 double dx = ballCenterX - brickCenterX;
                 double dy = ballCenterY - brickCenterY;
                 
+                // Flash brick and play sound
+                brick.flash();
+                SoundManager.playBrickHit();
+                
                 // Create particles
                 createParticles(brick.getX() + brick.getWidth() / 2, 
                               brick.getY() + brick.getHeight() / 2, 
@@ -156,6 +215,9 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
                 // Destroy brick
                 brick.destroy();
                 score += 10;
+                
+                // Play break sound
+                SoundManager.playBrickBreak();
                 
                 // Bounce ball based on collision side
                 if (Math.abs(dx) > Math.abs(dy)) {
@@ -187,12 +249,28 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
                 // Reset ball position
                 ball.setPosition(WIDTH / 2, HEIGHT - 80);
                 ball.reset();
+                SoundManager.playLevelComplete();
             }
         }
         
         // Check if ball fell off screen
         if (ball.getY() - ball.getRadius() > HEIGHT) {
             gameState = GameState.GAME_OVER;
+            SoundManager.playGameOver();
+        }
+        
+        // Update bricks (for flash effect)
+        for (Brick brick : bricks) {
+            brick.update();
+        }
+        
+        // Update background effects
+        scanLinePosition += 2;
+        if (scanLinePosition > HEIGHT + 20) {
+            scanLinePosition = -20;
+        }
+        for (BackgroundParticle p : bgParticles) {
+            p.update();
         }
         
         // Update particles
@@ -222,6 +300,32 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         
+        // Draw gradient background (#05010F → #0A011B)
+        GradientPaint bgGradient = new GradientPaint(
+            0, 0, new Color(5, 1, 15),
+            0, HEIGHT, new Color(10, 1, 27),
+            false
+        );
+        g2d.setPaint(bgGradient);
+        g2d.fillRect(0, 0, WIDTH, HEIGHT);
+        
+        // Draw background particles
+        for (BackgroundParticle p : bgParticles) {
+            p.draw(g2d);
+        }
+        
+        // Draw vertical hologram scan lines
+        g2d.setColor(new Color(0, 255, 255, 8));
+        g2d.setStroke(new BasicStroke(1.0f));
+        for (int i = 0; i < WIDTH; i += 40) {
+            g2d.drawLine(i, 0, i, HEIGHT);
+        }
+        
+        // Draw moving scan line
+        g2d.setColor(new Color(0, 255, 255, 15));
+        g2d.setStroke(new BasicStroke(2.0f));
+        g2d.drawLine(0, (int)scanLinePosition, WIDTH, (int)scanLinePosition);
+        
         // Draw game elements
         if (gameState == GameState.PLAYING || gameState == GameState.GAME_OVER || gameState == GameState.WIN) {
             // Draw bricks
@@ -246,26 +350,48 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
     }
     
     private void drawUI(Graphics2D g2d) {
-        g2d.setFont(new Font("Arial", Font.BOLD, 24));
-        g2d.setColor(new Color(255, 255, 255, 255));
+        // Score font - Exo 2 / Verdana fallback
+        Font scoreFont = new Font("Verdana", Font.BOLD, 24);
+        g2d.setFont(scoreFont);
+        g2d.setColor(new Color(0, 255, 255, 255)); // Neon cyan
         
-        // Draw score
+        // Draw score with glow
         String scoreText = "Score: " + score;
+        g2d.setColor(new Color(0, 255, 255, 100));
+        g2d.drawString(scoreText, 22, 32);
+        g2d.setColor(new Color(0, 255, 255, 255));
         g2d.drawString(scoreText, 20, 30);
         
         // Draw game state messages
         if (gameState == GameState.MENU) {
-            drawCenteredText(g2d, "NEON SHATTER", 40, new Color(0, 255, 255, 255));
-            drawCenteredText(g2d, "Press ENTER or SPACE to Start", 80, new Color(255, 255, 255, 200));
-            drawCenteredText(g2d, "Use Arrow Keys to Move", 110, new Color(255, 255, 255, 150));
+            // Title font - Orbitron / Trebuchet MS fallback
+            Font titleFont = new Font("Trebuchet MS", Font.BOLD, 48);
+            g2d.setFont(titleFont);
+            drawCenteredText(g2d, "NEON SHATTER", 60, new Color(0, 255, 255, 255));
+            
+            // Button font - Rajdhani / Segoe UI fallback
+            Font buttonFont = new Font("Segoe UI", Font.PLAIN, 18);
+            g2d.setFont(buttonFont);
+            drawCenteredText(g2d, "Press ENTER or SPACE to Start", 120, new Color(255, 255, 255, 200));
+            drawCenteredText(g2d, "Use Arrow Keys to Move", 150, new Color(255, 255, 255, 150));
         } else if (gameState == GameState.GAME_OVER) {
-            drawCenteredText(g2d, "GAME OVER", 40, new Color(255, 0, 0, 255));
-            drawCenteredText(g2d, "Final Score: " + score, 80, new Color(255, 255, 255, 200));
-            drawCenteredText(g2d, "Press ENTER to Restart", 110, new Color(255, 255, 255, 150));
+            Font titleFont = new Font("Trebuchet MS", Font.BOLD, 48);
+            g2d.setFont(titleFont);
+            drawCenteredText(g2d, "GAME OVER", 60, new Color(255, 0, 0, 255));
+            
+            Font buttonFont = new Font("Segoe UI", Font.PLAIN, 18);
+            g2d.setFont(buttonFont);
+            drawCenteredText(g2d, "Final Score: " + score, 120, new Color(255, 255, 255, 200));
+            drawCenteredText(g2d, "Press ENTER to Restart", 150, new Color(255, 255, 255, 150));
         } else if (gameState == GameState.WIN) {
-            drawCenteredText(g2d, "YOU WIN!", 40, new Color(0, 255, 0, 255));
-            drawCenteredText(g2d, "Final Score: " + score, 80, new Color(255, 255, 255, 200));
-            drawCenteredText(g2d, "Press ENTER to Play Again", 110, new Color(255, 255, 255, 150));
+            Font titleFont = new Font("Trebuchet MS", Font.BOLD, 48);
+            g2d.setFont(titleFont);
+            drawCenteredText(g2d, "YOU WIN!", 60, new Color(204, 255, 0, 255)); // Lime neon
+            
+            Font buttonFont = new Font("Segoe UI", Font.PLAIN, 18);
+            g2d.setFont(buttonFont);
+            drawCenteredText(g2d, "Final Score: " + score, 120, new Color(255, 255, 255, 200));
+            drawCenteredText(g2d, "Press ENTER to Play Again", 150, new Color(255, 255, 255, 150));
         }
     }
     

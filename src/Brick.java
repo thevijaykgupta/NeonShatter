@@ -8,6 +8,7 @@ public class Brick {
     private int width, height;
     private Color color;
     private boolean destroyed;
+    private int flashTimer;
     
     public Brick(int x, int y, int width, int height, Color color) {
         this.x = x;
@@ -16,6 +17,17 @@ public class Brick {
         this.height = height;
         this.color = color;
         this.destroyed = false;
+        this.flashTimer = 0;
+    }
+    
+    public void flash() {
+        flashTimer = 3; // 3 frames at 60fps = ~50ms
+    }
+    
+    public void update() {
+        if (flashTimer > 0) {
+            flashTimer--;
+        }
     }
     
     public void destroy() {
@@ -55,30 +67,47 @@ public class Brick {
         
         // Enable anti-aliasing
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         
-        int cornerRadius = 6;
+        int cornerRadius = 8;
         
-        // Draw glow effect (outer layers)
-        for (int i = 3; i > 0; i--) {
-            int alpha = 50 / i;
+        // Flash effect when hit
+        Color drawColor = color;
+        if (flashTimer > 0) {
+            drawColor = new Color(255, 255, 255, 255); // Flash white
+        }
+        
+        // Draw soft blur shadow
+        g2d.setColor(new Color(drawColor.getRed(), drawColor.getGreen(), drawColor.getBlue(), 40));
+        g2d.fillRoundRect(x + 2, y + 2, width, height, cornerRadius, cornerRadius);
+        
+        // Draw outer glow effect (bright colored borders)
+        for (int i = 4; i > 0; i--) {
+            int alpha = Math.max(15, 70 / i);
             int offset = i * 2;
-            g2d.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha));
+            g2d.setColor(new Color(drawColor.getRed(), drawColor.getGreen(), drawColor.getBlue(), alpha));
             g2d.fillRoundRect(x - offset, y - offset, 
                             width + offset * 2, height + offset * 2, 
                             cornerRadius + offset, cornerRadius + offset);
         }
         
         // Draw main brick
-        g2d.setColor(color);
+        g2d.setColor(drawColor);
         g2d.fillRoundRect(x, y, width, height, cornerRadius, cornerRadius);
         
+        // Draw thin 1px bright highlight on top edge for depth
+        g2d.setStroke(new BasicStroke(1.0f));
+        g2d.setColor(new Color(255, 255, 255, 200));
+        g2d.drawLine(x + cornerRadius, y, x + width - cornerRadius, y);
+        g2d.drawLine(x, y + cornerRadius, x, y + height / 4);
+        
         // Draw inner highlight for depth
-        g2d.setColor(new Color(255, 255, 255, 60));
+        g2d.setColor(new Color(255, 255, 255, 80));
         g2d.fillRoundRect(x + 2, y + 2, width - 4, height / 3, cornerRadius, cornerRadius);
         
-        // Draw border
-        g2d.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 200));
-        g2d.setStroke(new BasicStroke(1.5f));
+        // Draw bright neon border
+        g2d.setColor(new Color(drawColor.getRed(), drawColor.getGreen(), drawColor.getBlue(), 255));
+        g2d.setStroke(new BasicStroke(2.0f));
         g2d.drawRoundRect(x, y, width, height, cornerRadius, cornerRadius);
     }
 }

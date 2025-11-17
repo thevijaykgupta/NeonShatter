@@ -21,7 +21,7 @@ public class Paddle {
         this.width = width;
         this.height = height;
         this.screenWidth = screenWidth;
-        this.color = new Color(255, 0, 255, 255); // Magenta/Pink
+        this.color = new Color(255, 0, 255, 255); // Neon Purple
         this.velocity = 0;
     }
     
@@ -84,25 +84,40 @@ public class Paddle {
     public void draw(Graphics2D g2d) {
         // Enable anti-aliasing
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         
-        int cornerRadius = 8;
+        int cornerRadius = 10;
         
-        // Draw glow effect
-        for (int i = 4; i > 0; i--) {
-            int alpha = 40 / i;
+        // Draw outer glow with neon outline
+        for (int i = 5; i > 0; i--) {
+            int alpha = Math.max(10, 50 / i);
             int offset = i * 2;
-            g2d.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha));
+            g2d.setColor(new Color(255, 0, 255, alpha));
             g2d.fillRoundRect(x - offset, y - offset, 
                             width + offset * 2, height + offset * 2, 
                             cornerRadius + offset, cornerRadius + offset);
         }
         
-        // Draw main paddle
-        g2d.setColor(color);
+        // Draw soft blur shadow
+        g2d.setColor(new Color(138, 43, 226, 30)); // Purple shadow
+        g2d.fillRoundRect(x + 2, y + 2, width, height, cornerRadius, cornerRadius);
+        
+        // Draw gradient from purple to blue
+        GradientPaint gradient = new GradientPaint(
+            x, y, new Color(255, 0, 255, 255),  // Purple
+            x, y + height, new Color(0, 100, 255, 255),  // Blue
+            false
+        );
+        g2d.setPaint(gradient);
         g2d.fillRoundRect(x, y, width, height, cornerRadius, cornerRadius);
         
+        // Draw neon outline
+        g2d.setStroke(new BasicStroke(2.0f));
+        g2d.setColor(new Color(255, 0, 255, 200));
+        g2d.drawRoundRect(x, y, width, height, cornerRadius, cornerRadius);
+        
         // Draw inner highlight
-        g2d.setColor(new Color(255, 255, 255, 80));
+        g2d.setColor(new Color(255, 255, 255, 100));
         g2d.fillRoundRect(x + 2, y + 2, width - 4, height / 2, cornerRadius, cornerRadius);
     }
 }
