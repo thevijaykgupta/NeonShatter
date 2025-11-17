@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Shatter - Play Online</title>
+    <title>Cosmic Starfall - Play Online</title>
     <style>
         * {
             margin: 0;
@@ -29,7 +29,7 @@
         
         canvas {
             display: block;
-            background: rgb(5, 1, 15);
+            background: rgb(5, 5, 20);
         }
         
         #instructions {
@@ -76,10 +76,10 @@
         };
         
         const COLOR_ARRAY = [
-            {r: 0, g: 245, b: 255},    // Teal #00F5FF
-            {r: 255, g: 0, b: 247},    // Magenta #FF00F7
-            {r: 204, g: 255, b: 0},    // Lime Neon #CCFF00
-            {r: 255, g: 140, b: 0}     // Orange Neon #FF8C00
+            {r: 255, g: 255, b: 100},  // Yellow star
+            {r: 100, g: 150, b: 255},  // Blue star
+            {r: 255, g: 255, b: 255},  // White star
+            {r: 200, g: 100, b: 255}   // Purple star
         ];
         
         // Canvas setup
@@ -99,8 +99,9 @@
         let paddle, ball, bricks = [], particles = [];
         
         // Background effects
-        let bgParticles = [];
-        let scanLinePosition = 0;
+        let starParticles = [];
+        let nebulaOffset1 = 0;
+        let nebulaOffset2 = 0;
         
         // Layout generators
         const layouts = [
@@ -116,7 +117,9 @@
                 this.x = x;
                 this.y = y;
                 this.radius = radius;
-                this.color = COLOR_ARRAY[0];
+                this.color = {r: 150, g: 200, b: 255}; // Comet blue-white
+                this.trail = [];
+                this.maxTrailLength = 15;
                 this.reset();
             }
             
@@ -125,9 +128,16 @@
                 const baseSpeed = 4.0;
                 this.velocityX = baseSpeed * Math.cos(angle);
                 this.velocityY = -baseSpeed * Math.sin(angle);
+                this.trail = [];
             }
             
             update() {
+                // Add current position to trail
+                this.trail.push({x: this.x, y: this.y});
+                if (this.trail.length > this.maxTrailLength) {
+                    this.trail.shift();
+                }
+                
                 this.x += this.velocityX;
                 this.y += this.velocityY;
             }
@@ -161,44 +171,39 @@
             }
             
             draw() {
-                // Neon glow effect (2-3 outer circles with transparency)
-                for (let i = 4; i > 0; i--) {
-                    const alpha = Math.max(5, 60 / i) / 255;
-                    const glowRadius = this.radius + i * 3;
-                    ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
+                // Draw motion trail (fading tail)
+                if (this.trail.length > 1) {
+                    for (let i = 0; i < this.trail.length - 1; i++) {
+                        const p = this.trail[i];
+                        const alpha = (i + 1) / this.trail.length * 0.6;
+                        const trailSize = this.radius * 0.5 * alpha;
+                        ctx.fillStyle = `rgba(150, 200, 255, ${alpha})`;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, trailSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                
+                // Draw comet glow effect
+                for (let i = 5; i > 0; i--) {
+                    const alpha = Math.max(10, 80 / i) / 255;
+                    const glowRadius = this.radius + i * 2;
+                    ctx.fillStyle = `rgba(150, 200, 255, ${alpha})`;
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, glowRadius, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
-                // Soft blur shadow
-                for (let i = 2; i > 0; i--) {
-                    const alpha = (20 / i) / 255;
-                    const shadowRadius = this.radius + i;
-                    ctx.fillStyle = `rgba(0, 200, 255, ${alpha})`;
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, shadowRadius, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                // Main ball
+                // Draw main comet orb
                 ctx.fillStyle = `rgb(${this.color.r}, ${this.color.g}, ${this.color.b})`;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Reflection effect (white highlight arc)
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                // Draw bright core
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius * 0.6, 0.52, 2.09);
-                ctx.lineTo(this.x, this.y);
-                ctx.closePath();
-                ctx.fill();
-                
-                // Inner highlight
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.47)';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius / 2, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
@@ -211,25 +216,36 @@
                 this.width = width;
                 this.height = height;
                 this.screenWidth = screenWidth;
-                this.color = COLOR_ARRAY[1];
+                this.color = {r: 200, g: 200, b: 255}; // Spaceship color
                 this.velocity = 0;
                 this.acceleration = 0.5;
                 this.friction = 0.85;
                 this.maxSpeed = 8.0;
+                this.movingLeft = false;
+                this.movingRight = false;
             }
             
             moveLeft() {
                 this.velocity -= this.acceleration;
                 if (this.velocity < -this.maxSpeed) this.velocity = -this.maxSpeed;
+                this.movingLeft = true;
+                this.movingRight = false;
             }
             
             moveRight() {
                 this.velocity += this.acceleration;
                 if (this.velocity > this.maxSpeed) this.velocity = this.maxSpeed;
+                this.movingRight = true;
+                this.movingLeft = false;
             }
             
             update() {
                 this.velocity *= this.friction;
+                if (Math.abs(this.velocity) < 0.1) {
+                    this.velocity = 0;
+                    this.movingLeft = false;
+                    this.movingRight = false;
+                }
                 this.x += this.velocity;
                 
                 if (this.x < 0) {
@@ -246,38 +262,71 @@
             }
             
             draw() {
-                const cornerRadius = 10;
+                const centerX = this.x + this.width / 2;
+                const centerY = this.y + this.height / 2;
                 
-                // Outer glow with neon outline
-                for (let i = 5; i > 0; i--) {
-                    const alpha = Math.max(10, 50 / i) / 255;
-                    const offset = i * 2;
-                    ctx.fillStyle = `rgba(255, 0, 255, ${alpha})`;
-                    this.drawRoundedRect(this.x - offset, this.y - offset, 
-                                       this.width + offset * 2, this.height + offset * 2, 
-                                       cornerRadius + offset);
+                // Draw flame trail when moving
+                if (this.movingLeft) {
+                    this.drawFlameTrail(centerX, centerY, 1);
+                } else if (this.movingRight) {
+                    this.drawFlameTrail(centerX, centerY, -1);
                 }
                 
-                // Soft blur shadow
-                ctx.fillStyle = 'rgba(138, 43, 226, 0.12)';
-                this.drawRoundedRect(this.x + 2, this.y + 2, this.width, this.height, cornerRadius);
+                // Draw spaceship glow
+                for (let i = 3; i > 0; i--) {
+                    const alpha = 40 / i / 255;
+                    ctx.fillStyle = `rgba(200, 200, 255, ${alpha})`;
+                    const shipX = [centerX, this.x - i, this.x + this.width + i];
+                    const shipY = [this.y - i, this.y + this.height + i, this.y + this.height + i];
+                    ctx.beginPath();
+                    ctx.moveTo(shipX[0], shipY[0]);
+                    ctx.lineTo(shipX[1], shipY[1]);
+                    ctx.lineTo(shipX[2], shipY[2]);
+                    ctx.closePath();
+                    ctx.fill();
+                }
                 
-                // Gradient from purple to blue
-                const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
-                gradient.addColorStop(0, 'rgba(255, 0, 255, 1)');  // Purple
-                gradient.addColorStop(1, 'rgba(0, 100, 255, 1)');  // Blue
-                ctx.fillStyle = gradient;
-                this.drawRoundedRect(this.x, this.y, this.width, this.height, cornerRadius);
+                // Draw spaceship body (triangle)
+                const shipX = [centerX, this.x, this.x + this.width];
+                const shipY = [this.y, this.y + this.height, this.y + this.height];
+                ctx.fillStyle = `rgb(${this.color.r}, ${this.color.g}, ${this.color.b})`;
+                ctx.beginPath();
+                ctx.moveTo(shipX[0], shipY[0]);
+                ctx.lineTo(shipX[1], shipY[1]);
+                ctx.lineTo(shipX[2], shipY[2]);
+                ctx.closePath();
+                ctx.fill();
                 
-                // Neon outline
-                ctx.strokeStyle = 'rgba(255, 0, 255, 0.78)';
+                // Draw cockpit window
+                ctx.fillStyle = 'rgba(100, 150, 255, 0.71)';
+                ctx.beginPath();
+                ctx.arc(centerX, this.y + 2, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw spaceship outline
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
                 ctx.lineWidth = 2;
-                this.drawRoundedRect(this.x, this.y, this.width, this.height, cornerRadius);
+                ctx.beginPath();
+                ctx.moveTo(shipX[0], shipY[0]);
+                ctx.lineTo(shipX[1], shipY[1]);
+                ctx.lineTo(shipX[2], shipY[2]);
+                ctx.closePath();
                 ctx.stroke();
-                
-                // Inner highlight
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.39)';
-                this.drawRoundedRect(this.x + 2, this.y + 2, this.width - 4, this.height / 2, cornerRadius);
+            }
+            
+            drawFlameTrail(centerX, centerY, direction) {
+                const startX = direction > 0 ? this.x + this.width : this.x;
+                const flameLength = 15;
+                for (let i = 0; i < flameLength; i++) {
+                    const alpha = 1.0 - i / flameLength;
+                    const flameX = startX + direction * i * 2;
+                    const flameWidth = 8 * alpha;
+                    const flameHeight = 6 * alpha;
+                    ctx.fillStyle = `rgba(255, ${200 + 55 * alpha}, ${100 * alpha}, ${alpha * 0.78})`;
+                    ctx.beginPath();
+                    ctx.arc(flameX, centerY, flameWidth / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
             
             drawRoundedRect(x, y, w, h, r) {
@@ -306,6 +355,7 @@
                 this.color = color;
                 this.destroyed = false;
                 this.flashTimer = 0;
+                this.twinklePhase = Math.random() * Math.PI * 2;
             }
             
             flash() {
@@ -316,6 +366,7 @@
                 if (this.flashTimer > 0) {
                     this.flashTimer--;
                 }
+                this.twinklePhase += 0.15;
             }
             
             destroy() { this.destroyed = true; }
@@ -327,7 +378,8 @@
             draw() {
                 if (this.destroyed) return;
                 
-                const cornerRadius = 8;
+                // Update twinkle effect
+                const twinkleAlpha = 0.7 + 0.3 * Math.sin(this.twinklePhase);
                 
                 // Flash effect when hit
                 let drawColor = this.color;
@@ -335,45 +387,51 @@
                     drawColor = {r: 255, g: 255, b: 255}; // Flash white
                 }
                 
-                // Soft blur shadow
-                ctx.fillStyle = `rgba(${drawColor.r}, ${drawColor.g}, ${drawColor.b}, 0.16)`;
-                this.drawRoundedRect(this.x + 2, this.y + 2, this.width, this.height, cornerRadius);
+                const centerX = this.x + this.width / 2;
+                const centerY = this.y + this.height / 2;
+                const starSize = Math.max(this.width, this.height) / 2;
                 
-                // Outer glow effect (bright colored borders)
-                for (let i = 4; i > 0; i--) {
-                    const alpha = Math.max(15, 70 / i) / 255;
-                    const offset = i * 2;
+                // Draw soft halo around star
+                for (let i = 5; i > 0; i--) {
+                    const alpha = (60 / i) * twinkleAlpha / 255;
+                    const haloSize = starSize + i * 3;
                     ctx.fillStyle = `rgba(${drawColor.r}, ${drawColor.g}, ${drawColor.b}, ${alpha})`;
-                    this.drawRoundedRect(this.x - offset, this.y - offset,
-                                       this.width + offset * 2, this.height + offset * 2,
-                                       cornerRadius + offset);
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, haloSize, 0, Math.PI * 2);
+                    ctx.fill();
                 }
                 
-                // Main brick
-                ctx.fillStyle = `rgb(${drawColor.r}, ${drawColor.g}, ${drawColor.b})`;
-                this.drawRoundedRect(this.x, this.y, this.width, this.height, cornerRadius);
+                // Draw star sprite (4-pointed star)
+                this.drawStar(centerX, centerY, starSize, drawColor, twinkleAlpha);
+            }
+            
+            drawStar(centerX, centerY, size, color, alpha) {
+                const xPoints = [];
+                const yPoints = [];
                 
-                // Thin 1px bright highlight on top edge for depth
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
-                ctx.lineWidth = 1;
+                // Create 4-pointed star
+                for (let i = 0; i < 8; i++) {
+                    const angle = i * Math.PI / 4;
+                    const radius = (i % 2 === 0) ? size : size / 2;
+                    xPoints.push(centerX + radius * Math.cos(angle));
+                    yPoints.push(centerY + radius * Math.sin(angle));
+                }
+                
+                // Draw star with alpha
+                ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
                 ctx.beginPath();
-                ctx.moveTo(this.x + cornerRadius, this.y);
-                ctx.lineTo(this.x + this.width - cornerRadius, this.y);
-                ctx.stroke();
+                ctx.moveTo(xPoints[0], yPoints[0]);
+                for (let i = 1; i < 8; i++) {
+                    ctx.lineTo(xPoints[i], yPoints[i]);
+                }
+                ctx.closePath();
+                ctx.fill();
+                
+                // Draw bright center
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.78})`;
                 ctx.beginPath();
-                ctx.moveTo(this.x, this.y + cornerRadius);
-                ctx.lineTo(this.x, this.y + this.height / 4);
-                ctx.stroke();
-                
-                // Inner highlight for depth
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.31)';
-                this.drawRoundedRect(this.x + 2, this.y + 2, this.width - 4, this.height / 3, cornerRadius);
-                
-                // Bright neon border
-                ctx.strokeStyle = `rgb(${drawColor.r}, ${drawColor.g}, ${drawColor.b})`;
-                ctx.lineWidth = 2;
-                this.drawRoundedRect(this.x, this.y, this.width, this.height, cornerRadius);
-                ctx.stroke();
+                ctx.arc(centerX, centerY, size / 4, 0, Math.PI * 2);
+                ctx.fill();
             }
             
             drawRoundedRect(x, y, w, h, r) {
@@ -535,8 +593,8 @@
                    r1.y < r2.y + r2.height && r1.y + r1.height > r2.y;
         }
         
-        // Background particle class
-        class BackgroundParticle {
+        // Star particle class for parallax background
+        class StarParticle {
             constructor() {
                 this.reset();
             }
@@ -544,20 +602,14 @@
             reset() {
                 this.x = Math.random() * 800;
                 this.y = Math.random() * 600;
-                this.speed = Math.random() * 0.5 + 0.1;
+                this.speed = Math.random() * 0.3 + 0.05;
                 this.size = Math.floor(Math.random() * 2) + 1;
-                const colorChoice = Math.floor(Math.random() * 4);
-                const colors = [
-                    {r: 0, g: 245, b: 255},    // Teal
-                    {r: 255, g: 0, b: 247},    // Magenta
-                    {r: 204, g: 255, b: 0},    // Lime
-                    {r: 255, g: 140, b: 0}     // Orange
-                ];
-                this.color = colors[colorChoice];
+                this.twinklePhase = Math.random() * Math.PI * 2;
             }
             
             update() {
                 this.y += this.speed;
+                this.twinklePhase += 0.1;
                 if (this.y > 600) {
                     this.reset();
                     this.y = -5;
@@ -565,9 +617,31 @@
             }
             
             draw() {
-                ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0.12)`;
+                const alpha = 100 + 50 * Math.sin(this.twinklePhase);
+                const clampedAlpha = Math.max(50, Math.min(150, alpha));
+                ctx.fillStyle = `rgba(255, 255, 255, ${clampedAlpha / 255})`;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Nebula layer for parallax
+        function drawNebulaLayer(offset, speed, width, height) {
+            const colors = [
+                {r: 100, g: 50, b: 150, a: 0.08},  // Purple
+                {r: 50, g: 100, b: 200, a: 0.06},  // Blue
+                {r: 150, g: 50, b: 100, a: 0.07}   // Magenta
+            ];
+            
+            for (let i = 0; i < colors.length; i++) {
+                ctx.fillStyle = `rgba(${colors[i].r}, ${colors[i].g}, ${colors[i].b}, ${colors[i].a})`;
+                const x = (offset + i * 200) % (width + 400) - 200;
+                ctx.beginPath();
+                ctx.arc(x, height / 4, 200, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x + 300, height / 2, 175, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
@@ -588,12 +662,13 @@
             gameState = GameState.MENU;
             score = 0;
             
-            // Initialize background particles
-            bgParticles = [];
-            for (let i = 0; i < 15; i++) {
-                bgParticles.push(new BackgroundParticle());
+            // Initialize background star particles
+            starParticles = [];
+            for (let i = 0; i < 100; i++) {
+                starParticles.push(new StarParticle());
             }
-            scanLinePosition = 0;
+            nebulaOffset1 = 0;
+            nebulaOffset2 = 0;
         }
         
         function loadBrickLayout() {
@@ -674,11 +749,11 @@
             }
             
             // Update background effects
-            scanLinePosition += 2;
-            if (scanLinePosition > HEIGHT + 20) {
-                scanLinePosition = -20;
-            }
-            for (let p of bgParticles) {
+            nebulaOffset1 += 0.3;
+            nebulaOffset2 += 0.5;
+            if (nebulaOffset1 > 1000) nebulaOffset1 = 0;
+            if (nebulaOffset2 > 1000) nebulaOffset2 = 0;
+            for (let p of starParticles) {
                 p.update();
             }
             
@@ -727,28 +802,28 @@
             ctx.fillText(scoreText, 20, 30);
             
             if (gameState === GameState.MENU) {
-                // Title font - Trebuchet MS (Orbitron fallback)
-                ctx.font = 'bold 48px "Trebuchet MS"';
-                drawCenteredText('NEON SHATTER', 60, 'rgba(0, 255, 255, 1)');
+                // Title font - Segoe UI (Orbitron fallback)
+                ctx.font = 'bold 56px "Segoe UI"';
+                drawCenteredText('COSMIC STARFALL', 80, 'rgba(0, 255, 255, 1)');
                 
-                // Button font - Segoe UI (Rajdhani fallback)
+                // Button font - Segoe UI
                 ctx.font = '18px "Segoe UI"';
-                drawCenteredText('Press ENTER or SPACE to Start', 120, 'rgba(255, 255, 255, 0.78)');
-                drawCenteredText('Use Arrow Keys to Move', 150, 'rgba(255, 255, 255, 0.59)');
+                drawCenteredText('Press ENTER or SPACE to Start', 140, 'rgba(255, 255, 255, 0.86)');
+                drawCenteredText('Use Arrow Keys to Move', 170, 'rgba(255, 255, 255, 0.71)');
             } else if (gameState === GameState.GAME_OVER) {
-                ctx.font = 'bold 48px "Trebuchet MS"';
-                drawCenteredText('GAME OVER', 60, 'rgba(255, 0, 0, 1)');
+                ctx.font = 'bold 56px "Segoe UI"';
+                drawCenteredText('GAME OVER', 80, 'rgba(255, 100, 100, 1)');
                 
                 ctx.font = '18px "Segoe UI"';
-                drawCenteredText('Final Score: ' + score, 120, 'rgba(255, 255, 255, 0.78)');
-                drawCenteredText('Press ENTER to Restart', 150, 'rgba(255, 255, 255, 0.59)');
+                drawCenteredText('Final Score: ' + score, 140, 'rgba(255, 255, 255, 0.86)');
+                drawCenteredText('Press ENTER to Restart', 170, 'rgba(255, 255, 255, 0.71)');
             } else if (gameState === GameState.WIN) {
-                ctx.font = 'bold 48px "Trebuchet MS"';
-                drawCenteredText('YOU WIN!', 60, 'rgba(204, 255, 0, 1)'); // Lime neon
+                ctx.font = 'bold 56px "Segoe UI"';
+                drawCenteredText('VICTORY!', 80, 'rgba(255, 255, 100, 1)');
                 
                 ctx.font = '18px "Segoe UI"';
-                drawCenteredText('Final Score: ' + score, 120, 'rgba(255, 255, 255, 0.78)');
-                drawCenteredText('Press ENTER to Play Again', 150, 'rgba(255, 255, 255, 0.59)');
+                drawCenteredText('Final Score: ' + score, 140, 'rgba(255, 255, 255, 0.86)');
+                drawCenteredText('Press ENTER to Play Again', 170, 'rgba(255, 255, 255, 0.71)');
             }
         }
         
@@ -759,35 +834,21 @@
         }
         
         function render() {
-            // Draw gradient background (#05010F → #0A011B)
+            // Draw deep space background
             const bgGradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-            bgGradient.addColorStop(0, 'rgb(5, 1, 15)');
-            bgGradient.addColorStop(1, 'rgb(10, 1, 27)');
+            bgGradient.addColorStop(0, 'rgb(5, 5, 20)');
+            bgGradient.addColorStop(1, 'rgb(10, 5, 30)');
             ctx.fillStyle = bgGradient;
             ctx.fillRect(0, 0, WIDTH, HEIGHT);
             
-            // Draw background particles
-            for (let p of bgParticles) {
+            // Draw parallax nebula layers (2 layers scrolling at different speeds)
+            drawNebulaLayer(nebulaOffset1, 0.3, WIDTH, HEIGHT);
+            drawNebulaLayer(nebulaOffset2, 0.5, WIDTH, HEIGHT);
+            
+            // Draw twinkling star particles
+            for (let p of starParticles) {
                 p.draw();
             }
-            
-            // Draw vertical hologram scan lines
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.03)';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < WIDTH; i += 40) {
-                ctx.beginPath();
-                ctx.moveTo(i, 0);
-                ctx.lineTo(i, HEIGHT);
-                ctx.stroke();
-            }
-            
-            // Draw moving scan line
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.06)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(0, scanLinePosition);
-            ctx.lineTo(WIDTH, scanLinePosition);
-            ctx.stroke();
             
             if (gameState === GameState.PLAYING || gameState === GameState.GAME_OVER || gameState === GameState.WIN) {
                 // Draw bricks
