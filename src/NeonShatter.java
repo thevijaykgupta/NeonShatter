@@ -13,15 +13,23 @@ public class NeonShatter extends JFrame {
     }
     
     private void initUI() {
-        setTitle("Neon Shatter");
+        setTitle("Cosmic Starfall");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setResizable(false);
         
         GamePanel gamePanel = new GamePanel();
-        add(gamePanel);
+        
+        // Remove insets to fill entire window
+        setLayout(new BorderLayout());
+        add(gamePanel, BorderLayout.CENTER);
         
         pack();
         setLocationRelativeTo(null);
+        
+        // Ensure no gaps
+        setUndecorated(false);
+        Insets insets = getInsets();
+        setSize(800 + insets.left + insets.right, 600 + insets.top + insets.bottom);
     }
     
     public static void main(String[] args) {

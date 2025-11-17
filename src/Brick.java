@@ -62,6 +62,8 @@ public class Brick {
         return new Rectangle(x, y, width, height);
     }
     
+    private double twinklePhase = Math.random() * Math.PI * 2;
+    
     public void draw(Graphics2D g2d) {
         if (destroyed) return;
         
@@ -69,46 +71,52 @@ public class Brick {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         
-        int cornerRadius = 8;
+        // Update twinkle effect
+        twinklePhase += 0.15;
+        double twinkleAlpha = 0.7 + 0.3 * Math.sin(twinklePhase);
         
         // Flash effect when hit
         Color drawColor = color;
         if (flashTimer > 0) {
             drawColor = new Color(255, 255, 255, 255); // Flash white
+            twinkleAlpha = 1.0;
         }
         
-        // Draw soft blur shadow
-        g2d.setColor(new Color(drawColor.getRed(), drawColor.getGreen(), drawColor.getBlue(), 40));
-        g2d.fillRoundRect(x + 2, y + 2, width, height, cornerRadius, cornerRadius);
+        int centerX = x + width / 2;
+        int centerY = y + height / 2;
+        int starSize = Math.max(width, height) / 2;
         
-        // Draw outer glow effect (bright colored borders)
-        for (int i = 4; i > 0; i--) {
-            int alpha = Math.max(15, 70 / i);
-            int offset = i * 2;
+        // Draw soft halo around star
+        for (int i = 5; i > 0; i--) {
+            int alpha = (int)((60 / i) * twinkleAlpha);
+            int haloSize = starSize + i * 3;
             g2d.setColor(new Color(drawColor.getRed(), drawColor.getGreen(), drawColor.getBlue(), alpha));
-            g2d.fillRoundRect(x - offset, y - offset, 
-                            width + offset * 2, height + offset * 2, 
-                            cornerRadius + offset, cornerRadius + offset);
+            g2d.fillOval(centerX - haloSize, centerY - haloSize, haloSize * 2, haloSize * 2);
         }
         
-        // Draw main brick
-        g2d.setColor(drawColor);
-        g2d.fillRoundRect(x, y, width, height, cornerRadius, cornerRadius);
+        // Draw star sprite (4-pointed star)
+        drawStar(g2d, centerX, centerY, starSize, drawColor, twinkleAlpha);
+    }
+    
+    private void drawStar(Graphics2D g2d, int centerX, int centerY, int size, Color color, double alpha) {
+        int[] xPoints = new int[8];
+        int[] yPoints = new int[8];
         
-        // Draw thin 1px bright highlight on top edge for depth
-        g2d.setStroke(new BasicStroke(1.0f));
-        g2d.setColor(new Color(255, 255, 255, 200));
-        g2d.drawLine(x + cornerRadius, y, x + width - cornerRadius, y);
-        g2d.drawLine(x, y + cornerRadius, x, y + height / 4);
+        // Create 4-pointed star
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4;
+            int radius = (i % 2 == 0) ? size : size / 2;
+            xPoints[i] = centerX + (int)(radius * Math.cos(angle));
+            yPoints[i] = centerY + (int)(radius * Math.sin(angle));
+        }
         
-        // Draw inner highlight for depth
-        g2d.setColor(new Color(255, 255, 255, 80));
-        g2d.fillRoundRect(x + 2, y + 2, width - 4, height / 3, cornerRadius, cornerRadius);
+        // Draw star with alpha
+        g2d.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), (int)(alpha * 255)));
+        g2d.fillPolygon(xPoints, yPoints, 8);
         
-        // Draw bright neon border
-        g2d.setColor(new Color(drawColor.getRed(), drawColor.getGreen(), drawColor.getBlue(), 255));
-        g2d.setStroke(new BasicStroke(2.0f));
-        g2d.drawRoundRect(x, y, width, height, cornerRadius, cornerRadius);
+        // Draw bright center
+        g2d.setColor(new Color(255, 255, 255, (int)(alpha * 200)));
+        g2d.fillOval(centerX - size / 4, centerY - size / 4, size / 2, size / 2);
     }
 }
 

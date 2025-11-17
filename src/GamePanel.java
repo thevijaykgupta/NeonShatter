@@ -1,39 +1,35 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 /**
- * Background particle for ambient effect
+ * Star particle for parallax background
  */
-class BackgroundParticle {
+class StarParticle {
     private double x, y;
     private double speed;
     private int size;
-    private Color color;
+    private double twinklePhase;
     
-    public BackgroundParticle() {
+    public StarParticle() {
         reset();
     }
     
     public void reset() {
         x = Math.random() * 800;
         y = Math.random() * 600;
-        speed = Math.random() * 0.5 + 0.1;
+        speed = Math.random() * 0.3 + 0.05;
         size = (int)(Math.random() * 2) + 1;
-        int colorChoice = (int)(Math.random() * 4);
-        switch (colorChoice) {
-            case 0: color = new Color(0, 245, 255, 30); break; // Teal
-            case 1: color = new Color(255, 0, 247, 30); break; // Magenta
-            case 2: color = new Color(204, 255, 0, 30); break; // Lime
-            case 3: color = new Color(255, 140, 0, 30); break; // Orange
-        }
+        twinklePhase = Math.random() * Math.PI * 2;
     }
     
     public void update() {
         y += speed;
+        twinklePhase += 0.1;
         if (y > 600) {
             reset();
             y = -5;
@@ -41,8 +37,43 @@ class BackgroundParticle {
     }
     
     public void draw(Graphics2D g2d) {
-        g2d.setColor(color);
+        int alpha = (int)(100 + 50 * Math.sin(twinklePhase));
+        alpha = Math.max(50, Math.min(150, alpha));
+        g2d.setColor(new Color(255, 255, 255, alpha));
         g2d.fillOval((int)x, (int)y, size, size);
+    }
+}
+
+/**
+ * Nebula layer for parallax background
+ */
+class NebulaLayer {
+    private double offset;
+    private double speed;
+    private Color[] nebulaColors;
+    
+    public NebulaLayer(double speed) {
+        this.speed = speed;
+        this.offset = 0;
+        this.nebulaColors = new Color[] {
+            new Color(100, 50, 150, 20),  // Purple
+            new Color(50, 100, 200, 15),  // Blue
+            new Color(150, 50, 100, 18)   // Magenta
+        };
+    }
+    
+    public void update() {
+        offset += speed;
+        if (offset > 800) offset = 0;
+    }
+    
+    public void draw(Graphics2D g2d, int width, int height) {
+        for (int i = 0; i < nebulaColors.length; i++) {
+            g2d.setColor(nebulaColors[i]);
+            int x = (int)(offset + i * 200) % (width + 400) - 200;
+            g2d.fillOval(x, height / 4, 400, 300);
+            g2d.fillOval(x + 300, height / 2, 350, 250);
+        }
     }
 }
 
@@ -76,21 +107,26 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
     private boolean leftPressed, rightPressed;
     
     // Background effects
-    private List<BackgroundParticle> bgParticles;
-    private double scanLinePosition;
+    private List<StarParticle> starParticles;
+    private NebulaLayer nebulaLayer1;
+    private NebulaLayer nebulaLayer2;
+    private int frameCount;
     
     public GamePanel() {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
-        setBackground(new Color(5, 1, 15)); // Dark gradient start
+        setBackground(new Color(5, 5, 20)); // Deep space
         setFocusable(true);
         addKeyListener(this);
+        setOpaque(true);
         
         // Initialize background effects
-        bgParticles = new ArrayList<>();
-        for (int i = 0; i < 15; i++) {
-            bgParticles.add(new BackgroundParticle());
+        starParticles = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            starParticles.add(new StarParticle());
         }
-        scanLinePosition = 0;
+        nebulaLayer1 = new NebulaLayer(0.1);
+        nebulaLayer2 = new NebulaLayer(0.05);
+        frameCount = 0;
         
         // Initialize layouts
         layouts = new BrickLayout[] {
@@ -265,11 +301,10 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
         }
         
         // Update background effects
-        scanLinePosition += 2;
-        if (scanLinePosition > HEIGHT + 20) {
-            scanLinePosition = -20;
-        }
-        for (BackgroundParticle p : bgParticles) {
+        frameCount++;
+        nebulaLayer1.update();
+        nebulaLayer2.update();
+        for (StarParticle p : starParticles) {
             p.update();
         }
         
@@ -299,36 +334,24 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
         // Enable better rendering quality
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
         
-        // Draw gradient background (#05010F → #0A011B)
-        GradientPaint bgGradient = new GradientPaint(
-            0, 0, new Color(5, 1, 15),
-            0, HEIGHT, new Color(10, 1, 27),
-            false
-        );
-        g2d.setPaint(bgGradient);
+        // Draw deep space background
+        g2d.setColor(new Color(5, 5, 20));
         g2d.fillRect(0, 0, WIDTH, HEIGHT);
         
-        // Draw background particles
-        for (BackgroundParticle p : bgParticles) {
+        // Draw parallax nebula layers
+        nebulaLayer2.draw(g2d, WIDTH, HEIGHT);
+        nebulaLayer1.draw(g2d, WIDTH, HEIGHT);
+        
+        // Draw star particles
+        for (StarParticle p : starParticles) {
             p.draw(g2d);
         }
         
-        // Draw vertical hologram scan lines
-        g2d.setColor(new Color(0, 255, 255, 8));
-        g2d.setStroke(new BasicStroke(1.0f));
-        for (int i = 0; i < WIDTH; i += 40) {
-            g2d.drawLine(i, 0, i, HEIGHT);
-        }
-        
-        // Draw moving scan line
-        g2d.setColor(new Color(0, 255, 255, 15));
-        g2d.setStroke(new BasicStroke(2.0f));
-        g2d.drawLine(0, (int)scanLinePosition, WIDTH, (int)scanLinePosition);
-        
         // Draw game elements
         if (gameState == GameState.PLAYING || gameState == GameState.GAME_OVER || gameState == GameState.WIN) {
-            // Draw bricks
+            // Draw bricks (stars)
             for (Brick brick : bricks) {
                 brick.draw(g2d);
             }
@@ -338,10 +361,10 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
                 particle.draw(g2d);
             }
             
-            // Draw paddle
+            // Draw paddle (spaceship)
             paddle.draw(g2d);
             
-            // Draw ball
+            // Draw ball (comet)
             ball.draw(g2d);
         }
         
@@ -350,56 +373,67 @@ public class GamePanel extends JPanel implements KeyListener, ActionListener {
     }
     
     private void drawUI(Graphics2D g2d) {
-        // Score font - Exo 2 / Verdana fallback
-        Font scoreFont = new Font("Verdana", Font.BOLD, 24);
+        // Score font - Orbitron / Segoe UI fallback
+        Font scoreFont = new Font("Segoe UI", Font.BOLD, 24);
         g2d.setFont(scoreFont);
-        g2d.setColor(new Color(0, 255, 255, 255)); // Neon cyan
         
-        // Draw score with glow
+        // Draw score with cyan/white glow
         String scoreText = "Score: " + score;
-        g2d.setColor(new Color(0, 255, 255, 100));
-        g2d.drawString(scoreText, 22, 32);
-        g2d.setColor(new Color(0, 255, 255, 255));
-        g2d.drawString(scoreText, 20, 30);
+        drawTextWithGlow(g2d, scoreText, 20, 30, new Color(0, 255, 255, 255));
         
         // Draw game state messages
         if (gameState == GameState.MENU) {
-            // Title font - Orbitron / Trebuchet MS fallback
-            Font titleFont = new Font("Trebuchet MS", Font.BOLD, 48);
+            // Title font - Orbitron / Segoe UI fallback
+            Font titleFont = new Font("Segoe UI", Font.BOLD, 56);
             g2d.setFont(titleFont);
-            drawCenteredText(g2d, "NEON SHATTER", 60, new Color(0, 255, 255, 255));
+            drawCenteredText(g2d, "COSMIC STARFALL", 80, new Color(0, 255, 255, 255));
             
-            // Button font - Rajdhani / Segoe UI fallback
+            // Button font - Segoe UI
             Font buttonFont = new Font("Segoe UI", Font.PLAIN, 18);
             g2d.setFont(buttonFont);
-            drawCenteredText(g2d, "Press ENTER or SPACE to Start", 120, new Color(255, 255, 255, 200));
-            drawCenteredText(g2d, "Use Arrow Keys to Move", 150, new Color(255, 255, 255, 150));
+            drawCenteredText(g2d, "Press ENTER or SPACE to Start", 140, new Color(255, 255, 255, 220));
+            drawCenteredText(g2d, "Use Arrow Keys to Move", 170, new Color(255, 255, 255, 180));
         } else if (gameState == GameState.GAME_OVER) {
-            Font titleFont = new Font("Trebuchet MS", Font.BOLD, 48);
+            Font titleFont = new Font("Segoe UI", Font.BOLD, 56);
             g2d.setFont(titleFont);
-            drawCenteredText(g2d, "GAME OVER", 60, new Color(255, 0, 0, 255));
+            drawCenteredText(g2d, "GAME OVER", 80, new Color(255, 100, 100, 255));
             
             Font buttonFont = new Font("Segoe UI", Font.PLAIN, 18);
             g2d.setFont(buttonFont);
-            drawCenteredText(g2d, "Final Score: " + score, 120, new Color(255, 255, 255, 200));
-            drawCenteredText(g2d, "Press ENTER to Restart", 150, new Color(255, 255, 255, 150));
+            drawCenteredText(g2d, "Final Score: " + score, 140, new Color(255, 255, 255, 220));
+            drawCenteredText(g2d, "Press ENTER to Restart", 170, new Color(255, 255, 255, 180));
         } else if (gameState == GameState.WIN) {
-            Font titleFont = new Font("Trebuchet MS", Font.BOLD, 48);
+            Font titleFont = new Font("Segoe UI", Font.BOLD, 56);
             g2d.setFont(titleFont);
-            drawCenteredText(g2d, "YOU WIN!", 60, new Color(204, 255, 0, 255)); // Lime neon
+            drawCenteredText(g2d, "VICTORY!", 80, new Color(255, 255, 100, 255));
             
             Font buttonFont = new Font("Segoe UI", Font.PLAIN, 18);
             g2d.setFont(buttonFont);
-            drawCenteredText(g2d, "Final Score: " + score, 120, new Color(255, 255, 255, 200));
-            drawCenteredText(g2d, "Press ENTER to Play Again", 150, new Color(255, 255, 255, 150));
+            drawCenteredText(g2d, "Final Score: " + score, 140, new Color(255, 255, 255, 220));
+            drawCenteredText(g2d, "Press ENTER to Play Again", 170, new Color(255, 255, 255, 180));
         }
+    }
+    
+    private void drawTextWithGlow(Graphics2D g2d, String text, int x, int y, Color color) {
+        FontMetrics fm = g2d.getFontMetrics();
+        // Draw glow layers
+        for (int i = 3; i > 0; i--) {
+            int alpha = 60 / i;
+            g2d.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha));
+            g2d.drawString(text, x + i, y + i);
+            g2d.drawString(text, x - i, y - i);
+            g2d.drawString(text, x + i, y - i);
+            g2d.drawString(text, x - i, y + i);
+        }
+        // Draw main text
+        g2d.setColor(color);
+        g2d.drawString(text, x, y);
     }
     
     private void drawCenteredText(Graphics2D g2d, String text, int y, Color color) {
         FontMetrics fm = g2d.getFontMetrics();
         int x = (WIDTH - fm.stringWidth(text)) / 2;
-        g2d.setColor(color);
-        g2d.drawString(text, x, y);
+        drawTextWithGlow(g2d, text, x, y, color);
     }
     
     @Override

@@ -14,6 +14,8 @@ public class Paddle {
     private static final double ACCELERATION = 0.5;
     private static final double FRICTION = 0.85;
     private static final double MAX_SPEED = 8.0;
+    private boolean movingLeft;
+    private boolean movingRight;
     
     public Paddle(int startX, int startY, int width, int height, int screenWidth) {
         this.x = startX;
@@ -21,8 +23,10 @@ public class Paddle {
         this.width = width;
         this.height = height;
         this.screenWidth = screenWidth;
-        this.color = new Color(255, 0, 255, 255); // Neon Purple
+        this.color = new Color(200, 200, 255, 255); // Spaceship color
         this.velocity = 0;
+        this.movingLeft = false;
+        this.movingRight = false;
     }
     
     public void moveLeft() {
@@ -30,6 +34,8 @@ public class Paddle {
         if (velocity < -MAX_SPEED) {
             velocity = -MAX_SPEED;
         }
+        movingLeft = true;
+        movingRight = false;
     }
     
     public void moveRight() {
@@ -37,11 +43,22 @@ public class Paddle {
         if (velocity > MAX_SPEED) {
             velocity = MAX_SPEED;
         }
+        movingRight = true;
+        movingLeft = false;
+    }
+    
+    public void stopMoving() {
+        movingLeft = false;
+        movingRight = false;
     }
     
     public void update() {
         // Apply friction
         velocity *= FRICTION;
+        if (Math.abs(velocity) < 0.1) {
+            velocity = 0;
+            stopMoving();
+        }
         
         // Update position
         x += (int)velocity;
@@ -86,39 +103,59 @@ public class Paddle {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         
-        int cornerRadius = 10;
+        int centerX = x + width / 2;
+        int centerY = y + height / 2;
         
-        // Draw outer glow with neon outline
-        for (int i = 5; i > 0; i--) {
-            int alpha = Math.max(10, 50 / i);
-            int offset = i * 2;
-            g2d.setColor(new Color(255, 0, 255, alpha));
-            g2d.fillRoundRect(x - offset, y - offset, 
-                            width + offset * 2, height + offset * 2, 
-                            cornerRadius + offset, cornerRadius + offset);
+        // Draw flame trail when moving
+        if (movingLeft) {
+            drawFlameTrail(g2d, x + width, centerY, 1);
+        } else if (movingRight) {
+            drawFlameTrail(g2d, x, centerY, -1);
         }
         
-        // Draw soft blur shadow
-        g2d.setColor(new Color(138, 43, 226, 30)); // Purple shadow
-        g2d.fillRoundRect(x + 2, y + 2, width, height, cornerRadius, cornerRadius);
+        // Draw spaceship body (simple triangle shape)
+        int[] shipX = {centerX, x, x + width};
+        int[] shipY = {y, y + height, y + height};
+        g2d.setColor(new Color(200, 200, 255, 255));
+        g2d.fillPolygon(shipX, shipY, 3);
         
-        // Draw gradient from purple to blue
-        GradientPaint gradient = new GradientPaint(
-            x, y, new Color(255, 0, 255, 255),  // Purple
-            x, y + height, new Color(0, 100, 255, 255),  // Blue
-            false
-        );
-        g2d.setPaint(gradient);
-        g2d.fillRoundRect(x, y, width, height, cornerRadius, cornerRadius);
+        // Draw spaceship glow
+        for (int i = 3; i > 0; i--) {
+            int alpha = 40 / i;
+            g2d.setColor(new Color(200, 200, 255, alpha));
+            int[] glowX = {centerX, x - i, x + width + i};
+            int[] glowY = {y - i, y + height + i, y + height + i};
+            g2d.fillPolygon(glowX, glowY, 3);
+        }
         
-        // Draw neon outline
+        // Draw cockpit window
+        g2d.setColor(new Color(100, 150, 255, 180));
+        g2d.fillOval(centerX - 8, y + 2, 16, 10);
+        
+        // Draw spaceship outline
         g2d.setStroke(new BasicStroke(2.0f));
-        g2d.setColor(new Color(255, 0, 255, 200));
-        g2d.drawRoundRect(x, y, width, height, cornerRadius, cornerRadius);
-        
-        // Draw inner highlight
-        g2d.setColor(new Color(255, 255, 255, 100));
-        g2d.fillRoundRect(x + 2, y + 2, width - 4, height / 2, cornerRadius, cornerRadius);
+        g2d.setColor(new Color(255, 255, 255, 200));
+        g2d.drawPolygon(shipX, shipY, 3);
+    }
+    
+    private void drawFlameTrail(Graphics2D g2d, int startX, int centerY, int direction) {
+        int flameLength = 15;
+        for (int i = 0; i < flameLength; i++) {
+            double alpha = 1.0 - (double)i / flameLength;
+            int flameX = startX + direction * i * 2;
+            int flameWidth = (int)(8 * alpha);
+            int flameHeight = (int)(6 * alpha);
+            
+            // Orange to yellow gradient
+            Color flameColor = new Color(
+                255, 
+                (int)(200 + 55 * alpha), 
+                (int)(100 * alpha), 
+                (int)(alpha * 200)
+            );
+            g2d.setColor(flameColor);
+            g2d.fillOval(flameX - flameWidth / 2, centerY - flameHeight / 2, flameWidth, flameHeight);
+        }
     }
 }
 

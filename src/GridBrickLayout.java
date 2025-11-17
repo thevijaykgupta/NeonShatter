@@ -7,10 +7,10 @@ import java.util.List;
  */
 public class GridBrickLayout implements BrickLayout {
     private static final Color[] COLORS = {
-        new Color(0, 245, 255, 255),    // Teal #00F5FF
-        new Color(255, 0, 247, 255),    // Magenta #FF00F7
-        new Color(204, 255, 0, 255),    // Lime Neon #CCFF00
-        new Color(255, 140, 0, 255)     // Orange Neon #FF8C00
+        new Color(255, 255, 100, 255),  // Yellow star
+        new Color(100, 150, 255, 255),  // Blue star
+        new Color(255, 255, 255, 255),  // White star
+        new Color(200, 100, 255, 255)   // Purple star
     };
     
     @Override
